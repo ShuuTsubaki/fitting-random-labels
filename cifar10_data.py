@@ -20,6 +20,10 @@ class CIFAR10RandomLabels(datasets.CIFAR10):
   """
   def __init__(self, corrupt_prob=0.0, num_classes=10, **kwargs):
     super(CIFAR10RandomLabels, self).__init__(**kwargs)
+    if self.train:
+      self.train_labels = self.targets
+    else:
+      self.test_labels = self.targets
     self.n_classes = num_classes
     if corrupt_prob > 0:
       self.corrupt_labels(corrupt_prob)
