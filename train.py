@@ -8,11 +8,14 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import torch.backends.cudnn as cudnn
 import torch.optim
-
+import dill
 from cifar10_data import CIFAR10RandomLabels
 from cifar100_data import CIFAR100RandomLabels
 from stl10_data import STL10RandomLabels
 from Fashion_MNIST_data import FashionMNISTRandomLabels
+from kmnist_data import KMNISTRandomLabels
+from VOC_data import VOCRandomLabels
+
 import cmd_args
 import model_mlp, model_wideresnet
 
@@ -138,8 +141,19 @@ def get_data_loaders(args, shuffle_train=True):
       else:
           transform_train = transforms.Compose([
               transforms.ToTensor(),
-              normalize,
+              transforms.Normalize([0.5], [0.5])
           ])
+      # else:
+      #     transform_train = transforms.Compose([
+      #         transforms.ToTensor(),
+      #         normalize,
+      #     ])
+
+      # transform_test = transforms.Compose([
+      #     transforms.ToTensor(),
+      #     transforms.Lambda(lambda x: x.repeat(3, 1, 1)),
+      #     transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+      # ])
 
       transform_test = transforms.Compose([
           transforms.ToTensor(),
@@ -154,6 +168,78 @@ def get_data_loaders(args, shuffle_train=True):
           batch_size=args.batch_size, shuffle=shuffle_train, **kwargs)
       val_loader = torch.utils.data.DataLoader(
           FashionMNISTRandomLabels(root='./fashiondata', train=False,
+                            transform=transform_test, num_classes=args.num_classes,
+                            corrupt_prob=args.label_corrupt_prob),
+          batch_size=args.batch_size, shuffle=False, **kwargs)
+
+      return train_loader, val_loader
+  elif args.data == 'kmnist':
+      normalize = transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
+                                       std=[x / 255.0 for x in [63.0, 62.1, 66.7]])
+
+      if args.data_augmentation:
+          transform_train = transforms.Compose([
+              transforms.RandomCrop(32, padding=4),
+              transforms.RandomHorizontalFlip(),
+              transforms.ToTensor(),
+              normalize,
+          ])
+      else:
+          transform_train = transforms.Compose([
+              transforms.ToTensor(),
+              transforms.Normalize([0.5], [0.5])
+          ])
+
+
+      transform_test = transforms.Compose([
+          transforms.ToTensor(),
+          transforms.Normalize([0.5], [0.5])
+      ])
+
+      kwargs = {'num_workers': 1, 'pin_memory': True}
+      train_loader = torch.utils.data.DataLoader(
+          KMNISTRandomLabels(root='./kmnistdata', train=True, download=True,
+                            transform=transform_train, num_classes=args.num_classes,
+                            corrupt_prob=args.label_corrupt_prob),
+          batch_size=args.batch_size, shuffle=shuffle_train, **kwargs)
+      val_loader = torch.utils.data.DataLoader(
+          KMNISTRandomLabels(root='./kmnistdata', train=False,
+                            transform=transform_test, num_classes=args.num_classes,
+                            corrupt_prob=args.label_corrupt_prob),
+          batch_size=args.batch_size, shuffle=False, **kwargs)
+
+      return train_loader, val_loader
+  elif args.data == "voc":
+      normalize = transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
+                                       std=[x / 255.0 for x in [63.0, 62.1, 66.7]])
+
+      if args.data_augmentation:
+          transform_train = transforms.Compose([
+              transforms.RandomCrop(32, padding=4),
+              transforms.RandomHorizontalFlip(),
+              transforms.ToTensor(),
+              normalize,
+          ])
+      else:
+          transform_train = transforms.Compose([
+              transforms.ToTensor(),
+              normalize,
+          ])
+
+
+      transform_test = transforms.Compose([
+          transforms.ToTensor(),
+          normalize
+      ])
+
+      kwargs = {'num_workers': 1, 'pin_memory': True}
+      train_loader = torch.utils.data.DataLoader(
+          VOCRandomLabels(root='./vocdata', image_set="train", download=True,
+                            transform=transform_train, num_classes=args.num_classes,
+                            corrupt_prob=args.label_corrupt_prob),
+          batch_size=args.batch_size, shuffle=shuffle_train, **kwargs)
+      val_loader = torch.utils.data.DataLoader(
+          VOCRandomLabels(root='./vocdata', image_set="val",
                             transform=transform_test, num_classes=args.num_classes,
                             corrupt_prob=args.label_corrupt_prob),
           batch_size=args.batch_size, shuffle=False, **kwargs)
@@ -221,28 +307,6 @@ def train_model(args, model, train_loader, val_loader,
     train_loss.append(tr_loss)
     train_accuracy.append(tr_prec1)
 
-  # Plot results of perceptron training
-
-
-
-  plt.subplot(121)
-  train_line = plt.plot(range(start_epoch, epochs), train_accuracy, label="Training")
-  test_line = plt.plot(range(start_epoch, epochs), test_accuracy, label="Testing")
-  plt.title('Dataset')
-  plt.xlabel('Iteration')
-  plt.ylabel('Accuracy')
-  plt.legend()
-
-
-
-  plt.subplot(122)
-  train_line = plt.plot(range(start_epoch, epochs), train_loss, label="Training")
-  test_line = plt.plot(range(start_epoch, epochs), test_loss, label="Testing")
-  plt.title('Dataset')
-  plt.xlabel('Iteration')
-  plt.ylabel('Accuracy')
-  plt.legend()
-  plt.show()
   return test_accuracy, test_loss, train_accuracy, train_loss
 
 def train_epoch(train_loader, model, criterion, optimizer, epoch, args):

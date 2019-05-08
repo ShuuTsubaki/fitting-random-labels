@@ -1,9 +1,10 @@
 import argparse
+import dill
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--command', default='train', choices=['train'])
-parser.add_argument('--data', default='cifar10', choices=['cifar10', 'cifar100', 'stl10', 'fashionmnist'])
+parser.add_argument('--data', default='cifar10', choices=['cifar10', 'cifar100', 'stl10', 'fashionmnist', 'kmnist', 'imagenet', 'voc'])
 parser.add_argument('--num-classes', type=int, default=10)
 parser.add_argument('--data-augmentation', type=bool, default=False)
 parser.add_argument('--label-corrupt-prob', type=float, default=0.0)
